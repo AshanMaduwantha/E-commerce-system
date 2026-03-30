@@ -8,6 +8,7 @@ app.use(cors());
 app.use(
   "/users",
   createProxyMiddleware({
+    // Proxy to the User Service (port 3001)
     target: "http://localhost:3001",
     changeOrigin: true,
     pathRewrite: {
