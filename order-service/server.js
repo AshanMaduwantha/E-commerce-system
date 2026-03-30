@@ -30,8 +30,6 @@ let nextOrderId = 1;
  * /orders:
  *   post:
  *     summary: Create a new order
- *     tags:
- *       - Orders
  *     requestBody:
  *       required: true
  *       content:
@@ -97,8 +95,6 @@ app.post("/orders", (req, res) => {
  * /orders:
  *   get:
  *     summary: Get all orders
- *     tags:
- *       - Orders
  *     responses:
  *       200:
  *         description: List of all orders
@@ -119,8 +115,6 @@ app.get("/orders", (req, res) => {
  * /orders/{id}:
  *   get:
  *     summary: Get order by ID
- *     tags:
- *       - Orders
  *     parameters:
  *       - in: path
  *         name: id
@@ -162,8 +156,6 @@ app.get("/orders/:id", (req, res) => {
  * /orders/{id}:
  *   put:
  *     summary: Update order status
- *     tags:
- *       - Orders
  *     parameters:
  *       - in: path
  *         name: id
@@ -223,8 +215,6 @@ app.put("/orders/:id", (req, res) => {
  * /orders/{id}:
  *   delete:
  *     summary: Delete an order
- *     tags:
- *       - Orders
  *     parameters:
  *       - in: path
  *         name: id
@@ -263,7 +253,17 @@ app.delete("/orders/:id", (req, res) => {
 });
 
 // Swagger UI — http://localhost:5001/api-docs
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Hide/collapse the "Schemas" (components models) panel for a cleaner UI.
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    swaggerOptions: {
+      // swagger-ui setting: -1 means models are collapsed/hidden by default
+      defaultModelsExpandDepth: -1,
+    },
+  })
+);
 
 const server = app.listen(PORT, () => {
   console.log(`Order Service running on port ${PORT}`);
