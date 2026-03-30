@@ -21,6 +21,7 @@ const options = {
           type: "object",
           properties: {
             id: { type: "integer", example: 1 },
+            customerId: { type: "integer", example: 1 },
             customerName: { type: "string", example: "John" },
             productName: { type: "string", example: "Laptop" },
             quantity: { type: "integer", example: 2 },
@@ -29,9 +30,13 @@ const options = {
         },
         CreateOrderRequest: {
           type: "object",
-          required: ["customerName", "productName", "quantity"],
+          required: ["customerId", "productName", "quantity"],
           properties: {
-            customerName: { type: "string" },
+            customerId: { type: "integer", minimum: 1 },
+            customerName: {
+              type: "string",
+              description: "Optional; if sent, must match customerId user name",
+            },
             productName: { type: "string" },
             quantity: { type: "integer", minimum: 1 },
           },

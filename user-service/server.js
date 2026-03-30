@@ -14,7 +14,6 @@ app.use("/users", userRoutes);
 // swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// User Service runs on port 3001 (so it can coexist with order-service on 5001)
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`User Service running on port ${PORT}`);
