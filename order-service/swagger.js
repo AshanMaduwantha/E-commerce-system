@@ -25,6 +25,7 @@ const options = {
             customerName: { type: "string", example: "John" },
             productName: { type: "string", example: "Laptop" },
             quantity: { type: "integer", example: 2 },
+            amount: { type: "number", example: 500 },
             status: { type: "string", example: "Pending" },
           },
         },

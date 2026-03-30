@@ -40,6 +40,17 @@ const getOrderById = async (orderId) => {
   return { found: true, order };
 };
 
+const updateOrderStatus = async (orderId, status) => {
+  const response = await fetch(`${ORDER_SERVICE_URL}/orders/${orderId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, payload };
+};
+
 /**
  * @openapi
  * components:
@@ -64,13 +75,13 @@ const getOrderById = async (orderId) => {
  *       type: object
  *       required:
  *         - orderId
- *         - amount
  *         - paymentMethod
  *       properties:
  *         orderId:
  *           type: integer
  *         amount:
  *           type: number
+ *           description: Optional. Payment amount is derived from the order.
  *         paymentMethod:
  *           type: string
  *     UpdatePaymentStatusRequest:
@@ -117,14 +128,19 @@ const getOrderById = async (orderId) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *       409:
+ *         description: Order not eligible for payment (not Pending)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 // POST /payments - Create payment
 app.post("/payments", async (req, res) => {
-  const { orderId, amount, paymentMethod } = req.body;
+  const { orderId, paymentMethod } = req.body;
 
   const missing =
     orderId === undefined ||
-    amount === undefined ||
     paymentMethod === undefined ||
     paymentMethod === null ||
     String(paymentMethod).trim() === "";
@@ -132,20 +148,15 @@ app.post("/payments", async (req, res) => {
   if (missing) {
     return res
       .status(400)
-      .json({ message: "orderId, amount, and paymentMethod are required" });
+      .json({ message: "orderId and paymentMethod are required" });
   }
 
   const parsedOrderId = Number(orderId);
-  const parsedAmount = Number(amount);
 
   if (!Number.isInteger(parsedOrderId) || parsedOrderId < 1) {
     return res
       .status(400)
       .json({ message: "orderId must be a positive integer" });
-  }
-
-  if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-    return res.status(400).json({ message: "amount must be a positive number" });
   }
 
   let orderLookup;
@@ -161,6 +172,21 @@ app.post("/payments", async (req, res) => {
     return res.status(404).json({ message: "Order not found" });
   }
 
+  const orderStatus = String(orderLookup.order?.status || "").trim();
+  if (orderStatus.toLowerCase() !== "pending") {
+    return res.status(409).json({
+      message: `Payment rejected: order status must be Pending (current: ${orderStatus || "Unknown"})`,
+    });
+  }
+
+  // Amount is derived from the order to avoid trusting client input.
+  const parsedAmount = Number(orderLookup.order?.amount);
+  if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+    return res.status(400).json({
+      message: "Payment amount cannot be created because order amount is missing/invalid",
+    });
+  }
+
   const newPayment = {
     id: nextPaymentId++,
     orderId: parsedOrderId,
@@ -169,6 +195,25 @@ app.post("/payments", async (req, res) => {
     status: "Pending",
     createdAt: new Date().toISOString(),
   };
+
+  // Mark the order as Paid immediately to prevent double-payment attempts.
+  // (If you later add a real gateway flow, move this to a "payment succeeded" callback.)
+  let orderUpdate;
+  try {
+    orderUpdate = await updateOrderStatus(parsedOrderId, "Paid");
+  } catch (error) {
+    return res
+      .status(503)
+      .json({ message: "Order Service unavailable. Try again later." });
+  }
+
+  if (!orderUpdate.ok) {
+    return res.status(503).json({
+      message:
+        orderUpdate.payload?.message ||
+        "Failed to update order status. Payment was not created.",
+    });
+  }
 
   payments.push(newPayment);
   return res.status(201).json(newPayment);

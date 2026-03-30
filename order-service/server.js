@@ -17,7 +17,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // --- In-memory storage ---
-/** @type {Array<{id: number, customerId: number, customerName: string, productName: string, quantity: number, status: string}>} */
+/** @type {Array<{id: number, customerId: number, customerName: string, productName: string, quantity: number, amount: number, status: string}>} */
 const orders = [];
 let nextOrderId = 1;
 
@@ -177,12 +177,19 @@ app.post("/orders", async (req, res) => {
       .json({ message: "Inventory service unavailable. Try again later." });
   }
 
+  const unitPrice = Number(product.price);
+  if (Number.isNaN(unitPrice) || unitPrice <= 0) {
+    return res.status(500).json({ message: "Product price is invalid" });
+  }
+  const amount = unitPrice * qty;
+
   const order = {
     id: nextOrderId++,
     customerId: parsedCustomerId,
     customerName: String(customer.name).trim(),
     productName: String(productName).trim(),
     quantity: qty,
+    amount,
     status: "Pending",
   };
 
